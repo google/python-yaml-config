@@ -22,5 +22,5 @@ setup(
     maintainer='Greg Leeper',
     maintainer_email='gleeper@google.com',
     url='https://github.com/google/python-spanner-orm',
-    packages=['config_loader'],
+    packages=['yaml_config_loader'],
     install_requires=['pyyaml', 'jinja2'])
