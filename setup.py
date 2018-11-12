@@ -16,11 +16,11 @@
 from setuptools import setup
 
 setup(
-    name='yaml_config_loader',
+    name='yaml-config-loader',
     version='0.1.0',
     description='Yaml configuration loader',
     maintainer='Greg Leeper',
     maintainer_email='gleeper@google.com',
-    url='tbd',
-    packages=['yaml_config_loader'],
+    url='https://github.com/google/python-spanner-orm',
+    packages=['yaml-config-loader'],
     install_requires=['pyyaml', 'jinja2'])
