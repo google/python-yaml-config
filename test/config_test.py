@@ -13,13 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests for config_loader.config."""
+import abc
 import contextlib
 import tempfile
 
 from absl.testing import absltest
-from config_loader import config
 import jinja2
 import yaml
+
+from yaml_config_loader import config
 
 
 @contextlib.contextmanager
@@ -30,63 +32,83 @@ def config_file(content):
     yield temp.name
 
 
-class TestGlobalConfig(absltest.TestCase):
+class TestGlobalConfig(abc.ABC):
   """Test Global Config."""
+
+  @abc.abstractmethod
+  def config_init(self, contents, **jinja_variables):
+    pass
 
   def tearDown(self):
     config.CONFIG._tear_down()
 
-  def test_init_works_for_valid_file_name(self):
-    with config_file('KEY: VAL') as file_name:
-      config.init(file_name)
-      self.assertEqual(config.CONFIG.get(), {'KEY': 'VAL'})
+  def test_init_works_for_valid_yaml(self):
+    self.config_init('KEY: VAL')
+    self.assertEqual(config.CONFIG.get(), {'KEY': 'VAL'})
+
+  def test_init_works_for_valid_multiline_yaml(self):
+    self.config_init('KEYS:\n  KEY1: VAL1\n  KEY2: VAL2')
+    self.assertEqual(config.CONFIG.get(),
+                     {'KEYS': {
+                         'KEY1': 'VAL1',
+                         'KEY2': 'VAL2'
+                     }})
 
   def test_init_renders_jinja_variables_in_value(self):
-    with config_file('key: {{ jinja_var }}') as file_name:
-      config.init(file_name, jinja_var='multiple word value')
-      self.assertEqual(config.CONFIG.get(), {'key': 'multiple word value'})
+    self.config_init('key: {{ jinja_var }}', jinja_var='multiple word value')
+    self.assertEqual(config.CONFIG.get(), {'key': 'multiple word value'})
 
   def test_init_renders_jinja_variables_in_keys(self):
-    with config_file('{{ jinja_one }}: {{ jinja_two }}') as file_name:
-      config.init(file_name, jinja_one='key', jinja_two='val')
-      self.assertEqual(config.CONFIG.get(), {'key': 'val'})
+    self.config_init(
+        '{{ jinja_one }}: {{ jinja_two }}', jinja_one='key', jinja_two='val')
+    self.assertEqual(config.CONFIG.get(), {'key': 'val'})
 
   def test_init_fails_on_jinja_error(self):
-    with config_file('{{ jinja_one }}: {{ jinja_two }}') as file_name:
-      with self.assertRaises(jinja2.exceptions.UndefinedError):
-        config.init(file_name, jinja_one='key')
+    with self.assertRaises(jinja2.exceptions.UndefinedError):
+      self.config_init('{{ jinja_one }}: {{ jinja_two }}', jinja_one='key')
 
   def test_init_ignores_extra_jinja_args(self):
-    with config_file('{{ jinja_one }}: {{ jinja_two }}') as file_name:
-      config.init(
-          file_name, jinja_one='key', jinja_two='val', jinja_three='extra')
-      self.assertEqual(config.CONFIG.get(), {'key': 'val'})
+    self.config_init(
+        '{{ jinja_one }}: {{ jinja_two }}',
+        jinja_one='key',
+        jinja_two='val',
+        jinja_three='extra')
+    self.assertEqual(config.CONFIG.get(), {'key': 'val'})
 
   def test_init_fails_for_invalid_yaml(self):
-    with config_file('invalid : yaml : file') as file_name:
-      with self.assertRaises(yaml.scanner.ScannerError):
-        config.init(file_name)
+    with self.assertRaises(yaml.scanner.ScannerError):
+      self.config_init('invalid : yaml : file')
 
   def test_init_fails_for_invalid_file_name(self):
     with self.assertRaises(IOError):
-      config.init('non_existant_file.yaml')
+      config.init_from_file('non_existant_file.yaml')
 
   def test_init_multiple_times(self):
-    with config_file('KEY: VAL') as file_name:
-      config.init(file_name)
-      with self.assertRaises(config.ConfigAlreadyInitializedError):
-        config.init(file_name)
+    self.config_init('KEY: VAL')
+    with self.assertRaises(config.ConfigAlreadyInitializedError):
+      self.config_init('KEY: VAL')
 
-  def test_init_loads_empty_file(self):
-    with config_file('') as file_name:
-      config.init(file_name)
-      self.assertEqual(config.CONFIG.get(), {})
+  def test_init_loads_empty_string(self):
+    self.config_init('')
+    self.assertEqual(config.CONFIG.get(), {})
 
-  def test_init_recognizes_empty_file_loaded(self):
-    with config_file('') as file_name:
-      config.init(file_name)
-      with self.assertRaises(config.ConfigAlreadyInitializedError):
-        config.init(file_name)
+  def test_init_recognizes_empty_string_loaded(self):
+    self.config_init('')
+    with self.assertRaises(config.ConfigAlreadyInitializedError):
+      self.config_init('')
+
+
+class TestGlobalConfigWithInit(TestGlobalConfig, absltest.TestCase):
+
+  def config_init(self, contents, **jinja_variables):
+    config.init(contents, **jinja_variables)
+
+
+class TestGlobalConfigWithInitFromFile(TestGlobalConfig, absltest.TestCase):
+
+  def config_init(self, contents, **jinja_variables):
+    with config_file(contents) as file_name:
+      config.init_from_file(file_name, **jinja_variables)
 
 
 class ConfigTest(absltest.TestCase):

@@ -14,8 +14,8 @@
 # limitations under the License.
 """This module provides generic configuration handling.
 
-It reads a YAML file from disk and populates it with the given jinja variables
-and loads the yaml variables into memory.
+It reads a yaml file from disk or yaml string, populates the yaml with the given
+jinja variables, and loads the yaml variables into memory.
 """
 import copy
 import os
@@ -31,41 +31,32 @@ class _Config(object):
   def __init__(self):
     self._items = None
 
-  def _init(self, file_name, **jinja_variables):
-    """Populates the config object with variables defined in file_name.
+  def _init(self, yaml_string, **jinja_variables):
+    """Populates the config object with variables defined in yaml_string.
 
-    It renders jinja_variables into a YAML file and then loads the file into
+    It renders jinja_variables into a YAML string and then loads the yaml into
     _items
 
     Args:
-      file_name: Name of yaml file to load.
-      **jinja_variables: jinja variables to render inside of the yaml file.
+      yaml_string: yaml text to load.
+      **jinja_variables: jinja variables to render inside of the yaml text.
 
     Raises:
       ConfigAlreadyInitializedError: if global config is already initialized.
           You must call `tear_down` before being able to `init` again.
-      OSError: if file_name does not exist or is a directory.
-      jinja2.exceptions.UndefinedError: if the yaml file requires jinja
+      jinja2.exceptions.UndefinedError: if the yaml text requires jinja
           variables that are not included in jinja_variables.
-      yaml.scanner.ScannerError: if the yaml file is formatted incorrectly.
+      yaml.scanner.ScannerError: if the yaml text is formatted incorrectly.
     """
     if self._items is not None:
       raise ConfigAlreadyInitializedError()
 
-    if not os.path.isfile(file_name):
-      raise IOError('File not found: %s' % file_name)
-
-    # Parse the file path
-    directory = os.path.dirname(file_name)
-    file_name = os.path.basename(file_name)
-
     # Load the template
-    jinja_loader = jinja2.FileSystemLoader(directory)
-    jinja_env = jinja2.Environment(
-        loader=jinja_loader, undefined=jinja2.StrictUndefined)
-    template = jinja_env.get_template(file_name)
+    template = jinja2.Environment(
+        loader=jinja2.BaseLoader,
+        undefined=jinja2.StrictUndefined).from_string(yaml_string)
 
-    # Create the hash from the template and variables (set to {} if empty file)
+    # Create the hash from the template and variables (set to {} if empty yaml)
     yaml_text = template.render(jinja_variables)
     self._items = yaml.safe_load(yaml_text) or {}
 
@@ -79,7 +70,7 @@ class _Config(object):
       `get` should not be called in any thread until `init` has completed.
 
     For example:
-      Given a YAML file with content:
+      Given a YAML string with content:
       PARENT:
         CHILD: val
 
@@ -111,7 +102,9 @@ class _Config(object):
     return copy.deepcopy(value)
 
   def _tear_down(self):
-    """Cleanup for config object. Used for testing.
+    """Cleanup for config object.
+
+    Used for testing.
 
     This is useful if you want to initialize config multiple times.
     """
@@ -126,8 +119,33 @@ class ConfigAlreadyInitializedError(Exception):
   pass
 
 
-def init(file_name, **jinja_variables):
-  CONFIG._init(file_name, **jinja_variables)  # pylint: disable=protected-access
+def init_from_file(file_name, **jinja_variables):
+  """Populates global config with contents of file_name.
+
+  Args:
+    file_name: Name of file with yaml config.
+    **jinja_variables: Variables to render in yaml config.
+
+  Raises:
+    OSError: if file_name does not exist or is a directory.
+    ConfigAlreadyInitializedError: if global config is already initialized.
+        You must call `tear_down` before being able to `init` again.
+    jinja2.exceptions.UndefinedError: if the yaml file requires jinja
+        variables that are not included in jinja_variables.
+    yaml.scanner.ScannerError: if the yaml file is formatted incorrectly.
+  """
+  if not os.path.isfile(file_name):
+    raise IOError('File not found: %s' % file_name)
+
+  with open(file_name, 'r') as f:
+    contents = ''.join(f.readlines())
+
+  init(contents, **jinja_variables)
+
+
+def init(yaml_string, **jinja_variables):
+  """Initialize the global config from a yaml string."""
+  CONFIG._init(yaml_string, **jinja_variables)  # pylint: disable=protected-access
 
 
 # Global Config instance
