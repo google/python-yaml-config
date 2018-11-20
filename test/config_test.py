@@ -129,7 +129,7 @@ class ConfigTest(absltest.TestCase):
 
   def test_get_key_not_exist(self):
     self._conf._items = {}
-    with self.assertRaises(ValueError):
+    with self.assertRaises(KeyError):
       self._conf.get('BAD_KEY')
 
   def test_has_key_not_exist(self):

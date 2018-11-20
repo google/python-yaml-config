@@ -65,7 +65,7 @@ class _Config(object):
     try:
       self.get(*keys)
       return True
-    except ValueError:
+    except KeyError:
       return False
 
   def get(self, *keys: Text):
@@ -93,7 +93,7 @@ class _Config(object):
       Configuration value corresponding to keys.
 
     Raises:
-      ValueError: if key does not exists.
+      KeyError: if key does not exists.
       ConfigNotInitializedError: if the global config hasn't been
           initialized yet.
     """
@@ -103,7 +103,7 @@ class _Config(object):
     value = self._items
     for key in keys:
       if key not in value:
-        raise ValueError('{} is not found in config.'.format(key))
+        raise KeyError('{} is not found in config.'.format(key))
 
       value = value.get(key)
 
