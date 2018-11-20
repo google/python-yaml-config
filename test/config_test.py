@@ -143,6 +143,17 @@ class ConfigTest(absltest.TestCase):
     self.assertEqual({'KEY': 'VAL'}, self._conf.get())
     self.assertTrue(self._conf.has_key())
 
+  def test_get_and_has_key_fails_when_key_in_string_value(self):
+    value = 'String with KEY2 in it'
+    self._conf._items = {'KEY': value}
+    key2 = 'KEY2'
+    self.assertIn(key2, value)
+
+    with self.assertRaises(KeyError):
+      self._conf.get('KEY', key2)
+
+    self.assertFalse(self._conf.has_key('KEY', key2))
+
   def test_get_and_has_key(self):
     self._conf._items = {'KEY': 'VAL'}
 

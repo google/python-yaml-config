@@ -102,7 +102,7 @@ class _Config(object):
 
     value = self._items
     for key in keys:
-      if key not in value:
+      if not isinstance(value, dict) or key not in value:
         raise KeyError('{} is not found in config.'.format(key))
 
       value = value.get(key)
