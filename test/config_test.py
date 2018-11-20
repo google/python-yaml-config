@@ -122,30 +122,55 @@ class ConfigTest(absltest.TestCase):
     with self.assertRaises(config.ConfigNotInitializedError):
       self._conf.get('KEY')
 
+  def test_has_key_before_init_raises_error(self):
+    self.assertIsNone(self._conf._items)
+    with self.assertRaises(config.ConfigNotInitializedError):
+      self._conf.has_key('KEY')
+
   def test_get_key_not_exist(self):
     self._conf._items = {}
-    with self.assertRaises(ValueError):
+    with self.assertRaises(KeyError):
       self._conf.get('BAD_KEY')
 
-  def test_get_key_no_arg(self):
+  def test_has_key_not_exist(self):
+    self._conf._items = {}
+    self.assertFalse(self._conf.has_key('BAD_KEY'))
+    self.assertFalse(self._conf.has_key('BAD_PARENT', 'BAD_CHILD'))
+
+  def test_get_and_has_key_no_arg(self):
     self._conf._items = {'KEY': 'VAL'}
 
     self.assertEqual({'KEY': 'VAL'}, self._conf.get())
+    self.assertTrue(self._conf.has_key())
 
-  def test_get_key(self):
+  def test_get_and_has_key_fails_when_key_in_string_value(self):
+    value = 'String with KEY2 in it'
+    self._conf._items = {'KEY': value}
+    key2 = 'KEY2'
+    self.assertIn(key2, value)
+
+    with self.assertRaises(KeyError):
+      self._conf.get('KEY', key2)
+
+    self.assertFalse(self._conf.has_key('KEY', key2))
+
+  def test_get_and_has_key(self):
     self._conf._items = {'KEY': 'VAL'}
 
     self.assertEqual('VAL', self._conf.get('KEY'))
+    self.assertTrue(self._conf.has_key('KEY'))
 
-  def test_get_nested_key(self):
+  def test_get_and_has_nested_key(self):
     self._conf._items = {'PARENT': {'CHILD': 'VAL'}}
 
     self.assertEqual('VAL', self._conf.get('PARENT', 'CHILD'))
+    self.assertTrue(self._conf.has_key('PARENT', 'CHILD'))
 
-  def test_get_partial_key(self):
+  def test_get_and_has_partial_key(self):
     self._conf._items = {'PARENT': {'CHILD': 'VAL'}}
 
     self.assertEqual({'CHILD': 'VAL'}, self._conf.get('PARENT'))
+    self.assertTrue(self._conf.has_key('PARENT'))
 
   def test_get_key_immutable(self):
     self._conf._items = {'PARENT': {'CHILD': 'VAL'}}

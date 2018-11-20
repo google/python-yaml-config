@@ -60,6 +60,14 @@ class _Config(object):
     yaml_text = template.render(jinja_variables)
     self._items = yaml.safe_load(yaml_text) or {}
 
+  def has_key(self, *keys: Text):
+    """Returns a boolean indicating whether the key is defined in the config."""
+    try:
+      self.get(*keys)
+      return True
+    except KeyError:
+      return False
+
   def get(self, *keys: Text):
     """Gets the value for given configuration key.
 
@@ -85,7 +93,7 @@ class _Config(object):
       Configuration value corresponding to keys.
 
     Raises:
-      ValueError: if key does not exists.
+      KeyError: if key does not exists.
       ConfigNotInitializedError: if the global config hasn't been
           initialized yet.
     """
@@ -94,8 +102,8 @@ class _Config(object):
 
     value = self._items
     for key in keys:
-      if key not in value:
-        raise ValueError('{} is not found in config.'.format(key))
+      if not isinstance(value, dict) or key not in value:
+        raise KeyError('{} is not found in config.'.format(key))
 
       value = value.get(key)
 
