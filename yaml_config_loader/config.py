@@ -60,6 +60,14 @@ class _Config(object):
     yaml_text = template.render(jinja_variables)
     self._items = yaml.safe_load(yaml_text) or {}
 
+  def has_key(self, *keys: Text):
+    """Returns a boolean indicating whether the key is defined in the config."""
+    try:
+      self.get(*keys)
+      return True
+    except ValueError:
+      return False
+
   def get(self, *keys: Text):
     """Gets the value for given configuration key.
 
